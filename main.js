@@ -159,10 +159,14 @@ document
 
     // 현재 날짜로 파일명 생성을 위한 날짜 문자열
     const today = new Date();
-    const dateStr = `${today.getFullYear()}${(today.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}${today.getDate().toString().padStart(2, "0")}`;
-
+    const dateStr = `${today.getFullYear()}${String(
+      today.getMonth() + 1
+    ).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}${String(
+      today.getHours()
+    ).padStart(2, "0")}${String(today.getMinutes()).padStart(2, "0")}${String(
+      today.getSeconds()
+    ).padStart(2, "0")}${String(today.getMilliseconds()).padStart(3, "0")}`;
+    console.log(dateStr);
     for (const container of imageContainers) {
       // 이미지의 base64 데이터 추출
       const img = container.querySelector(".preview-image");
@@ -184,7 +188,11 @@ document
     }
 
     console.log(uploadData);
-    const payload = JSON.stringify(uploadData);
+    const payload = JSON.stringify({
+      type: "add",
+      data: uploadData,
+    });
+
     try {
       const response = await fetch(submitURL, {
         method: "POST",
@@ -195,8 +203,8 @@ document
       });
 
       if (response.ok) {
-        const responseData = await response.json();
-        alert(responseData.message || "업로드가 완료되었습니다!");
+        const responseText = await response.text();
+        alert(responseText || "업로드가 완료되었습니다!");
         // 업로드 후 페이지 초기화
         document.getElementById("imagePreview").innerHTML = "";
         document.querySelector(".common-filter").style.display = "none";

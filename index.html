@@ -3,16 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>이미지 업로더</title>
+    <title>Joon's Album</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <!-- 네비게이션 바 추가 -->
+    <nav class="navbar">
+      <div class="nav-content">
+        <div class="nav-left">
+          <img src="img/main_logo.jpg" alt="메인 로고" class="main-logo" />
+        </div>
+        <div class="nav-center">
+          <h1>준이 AlBum</h1>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 검색 영역 추가 -->
+    <div class="search-container">
+      <input type="text" class="search-input" placeholder="사진 검색하기..." />
+    </div>
+
+    <!-- 사진 갤러리 영역 추가 -->
+    <div class="gallery-container">
+      <div class="gallery-grid" id="photoGallery">
+        <!-- 여기에 사진들이 동적으로 추가될 것입니다 -->
+      </div>
+    </div>
+
     <div class="upload-container">
       <div class="upload-controls">
         <input type="file" id="imageUpload" accept="image/*" multiple />
-        <label for="imageUpload" class="upload-button">이미지 선택</label>
+        <label for="imageUpload" class="upload-button">이미지 업로드</label>
 
-        <!-- 공통 필터 영역 추가 -->
         <div class="common-filter">
           <input
             type="text"
@@ -23,7 +46,14 @@
           <button id="addCommonTag" class="add-tag-button">Add to All</button>
         </div>
       </div>
+
       <div id="imagePreview" class="image-preview-container"></div>
+
+      <div class="upload-submit-container">
+        <button id="submitUpload" class="submit-button" style="display: none">
+          사진 업로드
+        </button>
+      </div>
     </div>
 
     <script src="main.js"></script>
