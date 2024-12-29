@@ -12,7 +12,6 @@
         <input type="file" id="imageUpload" accept="image/*" multiple />
         <label for="imageUpload" class="upload-button">이미지 선택</label>
 
-        <!-- 공통 필터 영역 추가 -->
         <div class="common-filter">
           <input
             type="text"
@@ -23,7 +22,14 @@
           <button id="addCommonTag" class="add-tag-button">Add to All</button>
         </div>
       </div>
+
       <div id="imagePreview" class="image-preview-container"></div>
+
+      <div class="upload-submit-container">
+        <button id="submitUpload" class="submit-button" style="display: none">
+          사진 업로드
+        </button>
+      </div>
     </div>
 
     <script src="main.js"></script>
