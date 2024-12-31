@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Joon's Album</title>
     <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
   </head>
   <body>
     <!-- 네비게이션 바 추가 -->
@@ -14,21 +21,21 @@
           <img src="img/main_logo.jpg" alt="메인 로고" class="main-logo" />
         </div>
         <div class="nav-center">
-          <h1>준이 찍은 사진 모아보기</h1>
+          <h1>준이 사진 모아보기</h1>
+        </div>
+        <!-- 검색 입력창을 네비게이션 바로 이동 -->
+        <div class="nav-right">
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="태그 검색(2글자 이상)"
+          />
         </div>
       </div>
     </nav>
 
     <main class="container">
-      <!-- 검색 영역 추가 -->
-      <div class="search-container">
-        <input
-          type="text"
-          class="search-input"
-          placeholder="사진 검색하기..."
-        />
-      </div>
-
       <!-- 업로드 버튼 추가 -->
       <div class="upload-button-container">
         <button id="openUploadModal" class="open-upload-button">
@@ -53,7 +60,7 @@
                   placeholder="공통 태그 입력"
                 />
                 <button id="addCommonTag" class="add-tag-button">
-                  Add to All
+                  한번에 추가
                 </button>
               </div>
             </div>
@@ -80,7 +87,13 @@
         </div>
       </div>
     </main>
-
+    <div id="imageModal" class="image-modal">
+      <span class="close-image-modal">&times;</span>
+      <img id="modalImage" class="modal-content" src="" alt="확대된 이미지" />
+      <a id="downloadButton" class="download-button" href="" download>
+        <i class="fas fa-download"></i> 다운로드
+      </a>
+    </div>
     <script src="main.js"></script>
   </body>
 </html>

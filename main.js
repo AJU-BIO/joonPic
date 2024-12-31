@@ -171,7 +171,14 @@ document
 // 제출 버튼 이벤트 리스너
 document
   .getElementById("submitUpload")
-  .addEventListener("click", async function () {
+  .addEventListener("click", async function (e) {
+    const submitButton = e.target;
+
+    // 버튼 비활성화 및 로딩 상태 표시
+    submitButton.disabled = true;
+    submitButton.classList.add("loading");
+    submitButton.textContent = "업로드 중...";
+
     const imageContainers = document.querySelectorAll(".image-tag-container");
     const uploadData = [];
     let counter = 1;
@@ -224,15 +231,191 @@ document
       if (response.ok) {
         const responseText = await response.text();
         alert(responseText || "업로드가 완료되었습니다!");
-        // 업로드 후 초기화 및 모달 닫기
+
+        // 업로드 후 초기화
         document.getElementById("imagePreview").innerHTML = "";
         document.querySelector(".common-filter").style.display = "none";
         document.getElementById("submitUpload").style.display = "none";
         modal.style.display = "none";
+
+        // 갤러리 새로고침
+        await fetchAndDisplayData();
       } else {
         throw new Error("업로드 실패");
       }
     } catch (error) {
       alert("업로드 중 오류가 발생했습니다: " + error.message);
+    } finally {
+      // 버튼 상태 복원
+      submitButton.disabled = false;
+      submitButton.classList.remove("loading");
+      submitButton.textContent = "업로드";
     }
   });
+
+// 전역 변수로 데이터 저장
+let galleryData = [];
+
+// 기존 fetchAndDisplayData 함수 수정
+async function fetchAndDisplayData(retryCount = 3, delay = 1000) {
+  for (let i = 0; i < retryCount; i++) {
+    try {
+      const response = await fetch(submitURL);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const jsonString = await response.text();
+      galleryData = JSON.parse(jsonString); // 전역 변수에 저장
+      console.log("데이터 가져오기 성공:", galleryData);
+      await displayGallery(galleryData); // 전체 데이터 표시
+      return;
+    } catch (error) {
+      console.error(`시도 ${i + 1}/${retryCount} 실패:`, error);
+      if (i === retryCount - 1) {
+        console.error("모든 재시도 실패");
+        alert("데이터를 불러오는데 실패했습니다. 페이지를 새로고침 해주세요.");
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
+// 검색 기능 추가
+function filterGallery(searchText) {
+  const gallery = document.getElementById("photoGallery");
+  gallery.classList.add("searching");
+
+  setTimeout(() => {
+    if (!searchText || searchText.length < 2) {
+      displayGallery(galleryData);
+    } else {
+      const filteredData = galleryData.filter((item) => {
+        const tags = item.tags.toLowerCase();
+        return tags.includes(searchText.toLowerCase());
+      });
+      displayGallery(filteredData);
+    }
+
+    gallery.classList.remove("searching");
+  }, 300);
+}
+
+// 검색 입력 이벤트 리스너 추가
+const searchInput = document.getElementById("searchInput");
+let debounceTimer;
+
+searchInput.addEventListener("input", (e) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    filterGallery(e.target.value);
+  }, 300); // 300ms 디바운스
+});
+
+function getImageRatioType(width, height) {
+  const ratio = width / height;
+
+  if (ratio >= 1.7) {
+    return "landscape";
+  } else if (ratio <= 0.6) {
+    return "portrait";
+  } else {
+    return "square";
+  }
+}
+
+async function displayGallery(jsonData) {
+  const sortedData = jsonData.sort((a, b) => {
+    // 각 아이템의 태그에서 날짜 태그 찾기
+    const getDateFromTags = (tags) => {
+      const dateTag = tags
+        .split(",")
+        .find((tag) => tag.trim().match(/^#?\d{4}년\d{2}월\d{2}일$/));
+      if (!dateTag) return "";
+      // 날짜 태그에서 숫자만 추출 (예: '20240315')
+      return dateTag.replace(/[^0-9]/g, "");
+    };
+
+    const dateA = getDateFromTags(a.tags);
+    const dateB = getDateFromTags(b.tags);
+
+    // 날짜 태그가 없는 경우 ID로 폴백
+    if (!dateA || !dateB) {
+      const [idDateA, orderA] = a.id.split("_");
+      const [idDateB, orderB] = b.id.split("_");
+      return (
+        idDateB.localeCompare(idDateA) || parseInt(orderA) - parseInt(orderB)
+      );
+    }
+
+    // 날짜 내림차순 정렬 (최신순)
+    return dateB.localeCompare(dateA);
+  });
+
+  const galleryContainer = document.getElementById("photoGallery");
+  galleryContainer.innerHTML = "";
+
+  for (const item of sortedData) {
+    const card = document.createElement("div");
+    card.className = "gallery-card";
+
+    // JSON에서 제공하는 width, height 값 사용
+    const ratioType = getImageRatioType(item.width, item.height);
+    card.classList.add(`gallery-card-${ratioType}`);
+
+    const mediumImg = document.createElement("img");
+    mediumImg.src = item.mediumURL;
+    mediumImg.alt = "갤러리 이미지";
+    mediumImg.className = "gallery-image thumb";
+
+    const fullImg = document.createElement("img");
+    fullImg.src = item.imgURL;
+    fullImg.alt = "갤러리 이미지";
+    fullImg.className = "gallery-image medium";
+
+    const tagContainer = document.createElement("div");
+    tagContainer.className = "gallery-tags";
+
+    const tags = item.tags.split(",");
+    tags.forEach((tag) => {
+      const tagSpan = document.createElement("span");
+      tagSpan.className = "gallery-tag";
+      tagSpan.textContent = tag.trim();
+      tagContainer.appendChild(tagSpan);
+    });
+
+    card.addEventListener("click", () => {
+      const modal = document.getElementById("imageModal");
+      const modalImg = document.getElementById("modalImage");
+      const downloadBtn = document.getElementById("downloadButton");
+
+      modalImg.src = item.imgURL;
+      downloadBtn.href = item.imgURL;
+      downloadBtn.download = `${item.id}.jpg`; // 다운로드 파일명 설정
+      modal.style.display = "block";
+    });
+
+    card.appendChild(mediumImg);
+    card.appendChild(fullImg);
+    card.appendChild(tagContainer);
+    galleryContainer.appendChild(card);
+  }
+}
+
+// 모달 닫기 기능 추가
+const imageModal = document.getElementById("imageModal");
+const closeImageModal = document.querySelector(".close-image-modal");
+
+imageModal.addEventListener("click", (e) => {
+  if (e.target === imageModal || e.target.classList.contains("modal-content")) {
+    imageModal.style.display = "none";
+  }
+});
+
+closeImageModal.addEventListener("click", () => {
+  imageModal.style.display = "none";
+});
+
+//
+
+fetchAndDisplayData();
