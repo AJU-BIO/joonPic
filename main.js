@@ -1,3 +1,22 @@
+// 모달 관련 코드
+const modal = document.getElementById("uploadModal");
+const openModalBtn = document.getElementById("openUploadModal");
+const closeModalBtn = document.querySelector(".close-modal");
+
+openModalBtn.onclick = function () {
+  modal.style.display = "block";
+};
+
+closeModalBtn.onclick = function () {
+  modal.style.display = "none";
+};
+
+window.onclick = function (event) {
+  if (event.target == modal) {
+    modal.style.display = "none";
+  }
+};
+
 // submitURL 정의
 const submitURL =
   "https://script.google.com/macros/s/AKfycbypqHqbQoWmGuv0OCDg3TJTd4J93vs_kG9RR28QhLAiAL-SUsPh84_sAlLfmnQ5F5Nfvg/exec";
@@ -187,7 +206,7 @@ document
       counter++;
     }
 
-    console.log(uploadData);
+    // console.log(uploadData);
     const payload = JSON.stringify({
       type: "add",
       data: uploadData,
@@ -205,10 +224,11 @@ document
       if (response.ok) {
         const responseText = await response.text();
         alert(responseText || "업로드가 완료되었습니다!");
-        // 업로드 후 페이지 초기화
+        // 업로드 후 초기화 및 모달 닫기
         document.getElementById("imagePreview").innerHTML = "";
         document.querySelector(".common-filter").style.display = "none";
         document.getElementById("submitUpload").style.display = "none";
+        modal.style.display = "none";
       } else {
         throw new Error("업로드 실패");
       }
