@@ -273,9 +273,9 @@ body {
   height: 100px;
   border-radius: 50%;
   margin-right: 20px;
-  position: absolute;
+  /* position: absolute; */
   top: 10px;
-  left: 200px;
+  /* left: 200px; */
 }
 
 .nav-center {
@@ -553,8 +553,12 @@ main.container {
   }
 
   .nav-content {
-    flex-direction: column;
+    /* flex-direction: column; */
     gap: 15px;
+  }
+
+  .nav-center {
+    display: none;
   }
 
   .nav-right .search-input {
@@ -569,6 +573,15 @@ main.container {
 
   .image-preview-container {
     justify-content: center;
+  }
+
+  .main-logo {
+    width: 50px;
+    height: 50px;
+  }
+
+  .nav-right input {
+    font-size: 0.88rem;
   }
 }
 
