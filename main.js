@@ -41,10 +41,28 @@ document
           const imageContainer = document.createElement("div");
           imageContainer.className = "image-tag-container";
 
-          // 이미지 요소
+          // 이미지 컨테이너를 클릭 가능하게 만들기
+          const imgWrapper = document.createElement("div");
+          imgWrapper.className = "preview-image-wrapper";
+          imgWrapper.style.cursor = "pointer";
+
           const img = document.createElement("img");
           img.src = e.target.result;
           img.className = "preview-image";
+
+          // 이미지 클릭 이벤트 추가
+          imgWrapper.addEventListener("click", () => {
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("modalImage");
+            modalImg.src = e.target.result;
+            modal.style.display = "block";
+
+            // 다운로드 버튼 숨기기 (업로드 전이므로)
+            document.getElementById("downloadButton").style.display = "none";
+          });
+
+          imgWrapper.appendChild(img);
+          imageContainer.appendChild(imgWrapper);
 
           // 태그 입력 영역 컨테이너
           const tagArea = document.createElement("div");
@@ -192,7 +210,7 @@ document
     ).padStart(2, "0")}${String(today.getMinutes()).padStart(2, "0")}${String(
       today.getSeconds()
     ).padStart(2, "0")}${String(today.getMilliseconds()).padStart(3, "0")}`;
-    console.log(dateStr);
+    // console.log(dateStr);
     for (const container of imageContainers) {
       // 이미지의 base64 데이터 추출
       const img = container.querySelector(".preview-image");
@@ -253,10 +271,135 @@ document
     }
   });
 
-// 전역 변수로 데이터 저장
+// 전역 변수 추가
 let galleryData = [];
+let currentPage = 1;
+const itemsPerPage = 20;
+let currentSortOrder = "newest"; // 'newest' 또는 'oldest'
+let isLoading = false;
 
-// 기존 fetchAndDisplayData 함수 수정
+// 정렬 버튼 이벤트 리스너 추가
+document.getElementById("sortNewest").addEventListener("click", () => {
+  currentSortOrder = "newest";
+  currentPage = 1;
+  displayGallery(galleryData);
+});
+
+document.getElementById("sortOldest").addEventListener("click", () => {
+  currentSortOrder = "oldest";
+  currentPage = 1;
+  displayGallery(galleryData);
+});
+
+// 스크롤 이벤트 리스너 추가
+window.addEventListener("scroll", () => {
+  if (isLoading) return;
+
+  const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+  if (scrollTop + clientHeight >= scrollHeight - 100) {
+    loadMoreItems();
+  }
+});
+
+function loadMoreItems() {
+  if (currentPage * itemsPerPage >= galleryData.length) return;
+
+  currentPage++;
+  displayGallery(galleryData, true); // true는 추가 로딩을 의미
+}
+
+// displayGallery 함수 수정
+async function displayGallery(jsonData, isAppending = false) {
+  const galleryContainer = document.getElementById("photoGallery");
+  if (!isAppending) {
+    galleryContainer.innerHTML = "";
+    currentPage = 1;
+  }
+
+  isLoading = true;
+
+  // 정렬 로직
+  const sortedData = jsonData.sort((a, b) => {
+    const getDateFromTags = (tags) => {
+      const dateTag = tags
+        .split(",")
+        .find((tag) => tag.trim().match(/^#?\d{4}년\d{2}월\d{2}일$/));
+      if (!dateTag) return "";
+      return dateTag.replace(/[^0-9]/g, "");
+    };
+
+    const dateA = getDateFromTags(a.tags);
+    const dateB = getDateFromTags(b.tags);
+
+    if (!dateA || !dateB) {
+      const [idDateA, orderA] = a.id.split("_");
+      const [idDateB, orderB] = b.id.split("_");
+      return currentSortOrder === "newest"
+        ? idDateB.localeCompare(idDateA) || parseInt(orderA) - parseInt(orderB)
+        : idDateA.localeCompare(idDateB) || parseInt(orderB) - parseInt(orderA);
+    }
+
+    return currentSortOrder === "newest"
+      ? dateB.localeCompare(dateA)
+      : dateA.localeCompare(dateB);
+  });
+
+  // 페이지네이션 적용
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = currentPage * itemsPerPage;
+  const itemsToDisplay = sortedData.slice(startIndex, endIndex);
+
+  for (const item of itemsToDisplay) {
+    const card = document.createElement("div");
+    card.className = "gallery-card";
+
+    const ratioType = getImageRatioType(item.width, item.height);
+    card.classList.add(`gallery-card-${ratioType}`);
+
+    const mediumImg = document.createElement("img");
+    mediumImg.src = item.mediumURL;
+    mediumImg.alt = "갤러리 이미지";
+    mediumImg.className = "gallery-image thumb";
+    mediumImg.loading = "lazy";
+
+    const fullImg = document.createElement("img");
+    fullImg.src = item.imgURL;
+    fullImg.alt = "갤러리 이미지";
+    fullImg.className = "gallery-image medium";
+    fullImg.loading = "lazy";
+
+    const tagContainer = document.createElement("div");
+    tagContainer.className = "gallery-tags";
+
+    const tags = item.tags.split(",");
+    tags.forEach((tag) => {
+      const tagSpan = document.createElement("span");
+      tagSpan.className = "gallery-tag";
+      tagSpan.textContent = tag.trim();
+      tagContainer.appendChild(tagSpan);
+    });
+
+    card.addEventListener("click", () => {
+      const modal = document.getElementById("imageModal");
+      const modalImg = document.getElementById("modalImage");
+      const downloadBtn = document.getElementById("downloadButton");
+
+      modalImg.src = item.imgURL;
+      downloadBtn.href = item.imgURL;
+      downloadBtn.download = `${item.id}.jpg`; // 다운로드 파일명 설정
+      modal.style.display = "block";
+    });
+
+    card.appendChild(mediumImg);
+    card.appendChild(fullImg);
+    card.appendChild(tagContainer);
+    galleryContainer.appendChild(card);
+  }
+
+  isLoading = false;
+}
+
+// fetchAndDisplayData 함수 수정
 async function fetchAndDisplayData(retryCount = 3, delay = 1000) {
   for (let i = 0; i < retryCount; i++) {
     try {
@@ -265,9 +408,8 @@ async function fetchAndDisplayData(retryCount = 3, delay = 1000) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const jsonString = await response.text();
-      galleryData = JSON.parse(jsonString); // 전역 변수에 저장
-      console.log("데이터 가져오기 성공:", galleryData);
-      await displayGallery(galleryData); // 전체 데이터 표시
+      galleryData = JSON.parse(jsonString);
+      await displayGallery(galleryData);
       return;
     } catch (error) {
       console.error(`시도 ${i + 1}/${retryCount} 실패:`, error);
@@ -281,19 +423,21 @@ async function fetchAndDisplayData(retryCount = 3, delay = 1000) {
   }
 }
 
-// 검색 기능 추가
+// 검색 기능 수정
 function filterGallery(searchText) {
   const gallery = document.getElementById("photoGallery");
   gallery.classList.add("searching");
 
   setTimeout(() => {
     if (!searchText || searchText.length < 2) {
+      currentPage = 1;
       displayGallery(galleryData);
     } else {
       const filteredData = galleryData.filter((item) => {
         const tags = item.tags.toLowerCase();
         return tags.includes(searchText.toLowerCase());
       });
+      currentPage = 1;
       displayGallery(filteredData);
     }
 
@@ -324,84 +468,6 @@ function getImageRatioType(width, height) {
   }
 }
 
-async function displayGallery(jsonData) {
-  const sortedData = jsonData.sort((a, b) => {
-    // 각 아이템의 태그에서 날짜 태그 찾기
-    const getDateFromTags = (tags) => {
-      const dateTag = tags
-        .split(",")
-        .find((tag) => tag.trim().match(/^#?\d{4}년\d{2}월\d{2}일$/));
-      if (!dateTag) return "";
-      // 날짜 태그에서 숫자만 추출 (예: '20240315')
-      return dateTag.replace(/[^0-9]/g, "");
-    };
-
-    const dateA = getDateFromTags(a.tags);
-    const dateB = getDateFromTags(b.tags);
-
-    // 날짜 태그가 없는 경우 ID로 폴백
-    if (!dateA || !dateB) {
-      const [idDateA, orderA] = a.id.split("_");
-      const [idDateB, orderB] = b.id.split("_");
-      return (
-        idDateB.localeCompare(idDateA) || parseInt(orderA) - parseInt(orderB)
-      );
-    }
-
-    // 날짜 내림차순 정렬 (최신순)
-    return dateB.localeCompare(dateA);
-  });
-
-  const galleryContainer = document.getElementById("photoGallery");
-  galleryContainer.innerHTML = "";
-
-  for (const item of sortedData) {
-    const card = document.createElement("div");
-    card.className = "gallery-card";
-
-    // JSON에서 제공하는 width, height 값 사용
-    const ratioType = getImageRatioType(item.width, item.height);
-    card.classList.add(`gallery-card-${ratioType}`);
-
-    const mediumImg = document.createElement("img");
-    mediumImg.src = item.mediumURL;
-    mediumImg.alt = "갤러리 이미지";
-    mediumImg.className = "gallery-image thumb";
-
-    const fullImg = document.createElement("img");
-    fullImg.src = item.imgURL;
-    fullImg.alt = "갤러리 이미지";
-    fullImg.className = "gallery-image medium";
-
-    const tagContainer = document.createElement("div");
-    tagContainer.className = "gallery-tags";
-
-    const tags = item.tags.split(",");
-    tags.forEach((tag) => {
-      const tagSpan = document.createElement("span");
-      tagSpan.className = "gallery-tag";
-      tagSpan.textContent = tag.trim();
-      tagContainer.appendChild(tagSpan);
-    });
-
-    card.addEventListener("click", () => {
-      const modal = document.getElementById("imageModal");
-      const modalImg = document.getElementById("modalImage");
-      const downloadBtn = document.getElementById("downloadButton");
-
-      modalImg.src = item.imgURL;
-      downloadBtn.href = item.imgURL;
-      downloadBtn.download = `${item.id}.jpg`; // 다운로드 파일명 설정
-      modal.style.display = "block";
-    });
-
-    card.appendChild(mediumImg);
-    card.appendChild(fullImg);
-    card.appendChild(tagContainer);
-    galleryContainer.appendChild(card);
-  }
-}
-
 // 모달 닫기 기능 추가
 const imageModal = document.getElementById("imageModal");
 const closeImageModal = document.querySelector(".close-image-modal");
@@ -409,6 +475,7 @@ const closeImageModal = document.querySelector(".close-image-modal");
 imageModal.addEventListener("click", (e) => {
   if (e.target === imageModal || e.target.classList.contains("modal-content")) {
     imageModal.style.display = "none";
+    document.getElementById("downloadButton").style.display = "block";
   }
 });
 
