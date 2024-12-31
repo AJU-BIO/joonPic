@@ -424,6 +424,76 @@ main.container {
   animation: fadeInUp 0.5s ease forwards;
 }
 
+/* 업로드 버튼 로딩 상태 */
+.submit-button.loading {
+  background-color: var(--disabled-bg);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* 다운로드 버튼 스타일 */
+.download-button {
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px 20px;
+  border-radius: var(--border-radius-md);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  transition: all 0.2s ease;
+  opacity: 0.77;
+}
+
+.download-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.download-button i {
+  font-size: 1rem;
+}
+
+/* 모달 내 이미지 여백 조정 */
+.modal-content {
+  margin-bottom: 70px; /* 다운로드 버튼을 위한 여백 */
+}
+
+/* 검색 중일 때 적용될 스타일 */
+.gallery-grid.searching {
+  opacity: 0;
+}
+
+.preview-image-wrapper {
+  position: relative;
+  width: 100%;
+  transition: transform 0.2s ease;
+}
+
+.preview-image-wrapper:hover {
+  transform: scale(1.02);
+}
+
+.preview-image {
+  width: 230px;
+  height: 230px;
+  object-fit: cover;
+  border-radius: var(--border-radius-md);
+  box-shadow: 0 2px 4px var(--shadow-sm);
+}
+
+/* 이미지 모달 관련 스타일 수정 */
+.modal-content {
+  max-width: 90%;
+  max-height: 90vh;
+  margin: 5vh auto;
+  display: block;
+  object-fit: contain;
+}
+
 /* 페이드인 애니메이션 정의 */
 @keyframes fadeInUp {
   from {
@@ -609,72 +679,8 @@ main.container {
   }
 }
 
-/* 업로드 버튼 로딩 상태 */
-.submit-button.loading {
-  background-color: var(--disabled-bg);
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-/* 다운로드 버튼 스타일 */
-.download-button {
-  position: absolute;
-  bottom: 0px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: var(--primary-color);
-  color: white;
-  padding: 10px 20px;
-  border-radius: var(--border-radius-md);
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  transition: all 0.2s ease;
-  opacity: 0.77;
-}
-
-.download-button:hover {
-  background-color: var(--primary-hover);
-}
-
-.download-button i {
-  font-size: 1rem;
-}
-
-/* 모달 내 이미지 여백 조정 */
-.modal-content {
-  margin-bottom: 70px; /* 다운로드 버튼을 위한 여백 */
-}
-
-/* 검색 중일 때 적용될 스타일 */
-.gallery-grid.searching {
-  opacity: 0;
-}
-
-.preview-image-wrapper {
-  position: relative;
-  width: 100%;
-  transition: transform 0.2s ease;
-}
-
-.preview-image-wrapper:hover {
-  transform: scale(1.02);
-}
-
-.preview-image {
-  width: 230px;
-  height: 230px;
-  object-fit: cover;
-  border-radius: var(--border-radius-md);
-  box-shadow: 0 2px 4px var(--shadow-sm);
-}
-
-/* 이미지 모달 관련 스타일 수정 */
-.modal-content {
-  max-width: 90%;
-  max-height: 90vh;
-  margin: 5vh auto;
-  display: block;
-  object-fit: contain;
+@media (max-width: 400px) {
+  .sort-button > i {
+    display: none;
+  }
 }

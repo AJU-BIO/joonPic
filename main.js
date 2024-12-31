@@ -278,6 +278,9 @@ const itemsPerPage = 20;
 let currentSortOrder = "newest"; // 'newest' 또는 'oldest'
 let isLoading = false;
 
+// 정역 변수에 필터링된 데이터를 저장할 변수 추가
+let filteredGalleryData = [];
+
 // 정렬 버튼 이벤트 리스너 추가
 document.getElementById("sortNewest").addEventListener("click", () => {
   currentSortOrder = "newest";
@@ -302,10 +305,11 @@ window.addEventListener("scroll", () => {
 });
 
 function loadMoreItems() {
-  if (currentPage * itemsPerPage >= galleryData.length) return;
+  // filteredGalleryData를 기준으로 페이지네이션 체크
+  if (currentPage * itemsPerPage >= filteredGalleryData.length) return;
 
   currentPage++;
-  displayGallery(galleryData, true); // true는 추가 로딩을 의미
+  displayGallery(filteredGalleryData, true);
 }
 
 // displayGallery 함수 수정
@@ -409,7 +413,8 @@ async function fetchAndDisplayData(retryCount = 3, delay = 1000) {
       }
       const jsonString = await response.text();
       galleryData = JSON.parse(jsonString);
-      await displayGallery(galleryData);
+      filteredGalleryData = galleryData; // 초기 로드시 전체 데이터로 설정
+      await displayGallery(filteredGalleryData);
       return;
     } catch (error) {
       console.error(`시도 ${i + 1}/${retryCount} 실패:`, error);
@@ -430,17 +435,16 @@ function filterGallery(searchText) {
 
   setTimeout(() => {
     if (!searchText || searchText.length < 2) {
-      currentPage = 1;
-      displayGallery(galleryData);
+      filteredGalleryData = galleryData; // 검색어가 없을 때는 전체 데이터 사용
     } else {
-      const filteredData = galleryData.filter((item) => {
+      filteredGalleryData = galleryData.filter((item) => {
         const tags = item.tags.toLowerCase();
         return tags.includes(searchText.toLowerCase());
       });
-      currentPage = 1;
-      displayGallery(filteredData);
     }
 
+    currentPage = 1;
+    displayGallery(filteredGalleryData);
     gallery.classList.remove("searching");
   }, 300);
 }
