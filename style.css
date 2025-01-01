@@ -547,7 +547,8 @@ main.container {
   transition: all 0.3s ease;
 }
 
-.gallery-card:hover .gallery-image.medium {
+/* 사진 Hover 효과 */
+/* .gallery-card:hover .gallery-image.medium {
   opacity: 1;
   width: 130%;
   height: 130%;
@@ -555,7 +556,7 @@ main.container {
 
 .gallery-card:hover .gallery-tags {
   opacity: 0;
-}
+} */
 
 .gallery-tags {
   position: relative;
@@ -683,4 +684,30 @@ main.container {
   .sort-button > i {
     display: none;
   }
+}
+
+.upload-progress-container {
+  margin-top: 10px;
+  width: 100%;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress {
+  width: 0;
+  height: 100%;
+  background-color: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  text-align: center;
+  margin-top: 5px;
+  font-size: 14px;
 }

@@ -190,85 +190,115 @@ document
 document
   .getElementById("submitUpload")
   .addEventListener("click", async function (e) {
+    // 제출 버튼 비활성화 및 로딩 상태 표시
     const submitButton = e.target;
-
-    // 버튼 비활성화 및 로딩 상태 표시
     submitButton.disabled = true;
     submitButton.classList.add("loading");
-    submitButton.textContent = "업로드 중...";
 
+    // 프로그레스 바 UI 생성
+    const progressContainer = document.createElement("div");
+    progressContainer.className = "upload-progress-container";
+    progressContainer.innerHTML = `
+      <div class="progress-bar">
+        <div class="progress"></div>
+      </div>
+      <div class="progress-text">0/0 업로드 완료</div>
+    `;
+    submitButton.parentElement.appendChild(progressContainer);
+
+    const progressBar = progressContainer.querySelector(".progress");
+    const progressText = progressContainer.querySelector(".progress-text");
+
+    // 업로드할 이미지 컨테이너들 수집
     const imageContainers = document.querySelectorAll(".image-tag-container");
-    const uploadData = [];
-    let counter = 1;
+    const totalImages = imageContainers.length;
+    let uploadSuccessCount = 0;
 
-    // 현재 날짜로 파일명 생성을 위한 날짜 문자열
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}${String(
-      today.getMonth() + 1
-    ).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}${String(
-      today.getHours()
-    ).padStart(2, "0")}${String(today.getMinutes()).padStart(2, "0")}${String(
-      today.getSeconds()
-    ).padStart(2, "0")}${String(today.getMilliseconds()).padStart(3, "0")}`;
-    // console.log(dateStr);
-    for (const container of imageContainers) {
-      // 이미지의 base64 데이터 추출
-      const img = container.querySelector(".preview-image");
-      const base64Data = img.src.split(",")[1]; // base64 데이터 부분만 추출
+    // 현일명 생성을 위한 타임스탬프 (YYYYMMDDHHmmssSSS 형식)
+    const dateStr = new Date()
+      .toISOString()
+      .replace(/[-:\.]/g, "")
+      .slice(0, -4);
 
-      // 태그 추출 (# 제거)
-      const tags = Array.from(container.querySelectorAll(".tag")).map((tag) =>
-        tag.textContent.replace("#", "")
-      );
+    // 모든 업로드 요청을 Promise 배열로 생성
+    const uploadPromises = Array.from(imageContainers).map(
+      async (container, i) => {
+        // 각 요청 시작 전 지연 시간 설정 (0ms, 500ms, 1000ms, ...)
+        await new Promise((resolve) => setTimeout(resolve, i * 500));
 
-      // 데이터 객체 생성
-      uploadData.push({
-        fileName: `${dateStr}_${counter}`,
-        fileBase64: base64Data,
-        tags: tags,
-      });
+        const img = container.querySelector(".preview-image");
+        const base64Data = img.src.split(",")[1];
+        const tags = Array.from(container.querySelectorAll(".tag")).map((tag) =>
+          tag.textContent.replace("#", "")
+        );
 
-      counter++;
-    }
+        const currentFileName = `${dateStr}_${i + 1}`;
 
-    // console.log(uploadData);
-    const payload = JSON.stringify({
-      type: "add",
-      data: uploadData,
-    });
+        const singlePayload = JSON.stringify({
+          type: "add",
+          data: [
+            {
+              fileName: currentFileName,
+              fileBase64: base64Data,
+              tags: tags,
+            },
+          ],
+        });
 
-    try {
-      const response = await fetch(submitURL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: payload,
-      });
+        try {
+          const response = await fetch(submitURL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: singlePayload,
+          });
+          console.log(`FETCH보냄: ${currentFileName}`);
+          const result = await response.text();
 
-      if (response.ok) {
-        const responseText = await response.text();
-        alert(responseText || "업로드가 완료되었습니다!");
+          if (response.ok && result.includes(currentFileName)) {
+            uploadSuccessCount++;
+            container.style.opacity = "0.5";
 
-        // 업로드 후 초기화
-        document.getElementById("imagePreview").innerHTML = "";
-        document.querySelector(".common-filter").style.display = "none";
-        document.getElementById("submitUpload").style.display = "none";
-        modal.style.display = "none";
-
-        // 갤러리 새로고침
-        await fetchAndDisplayData();
-      } else {
-        throw new Error("업로드 실패");
+            const progress = (uploadSuccessCount / totalImages) * 100;
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${uploadSuccessCount}/${totalImages} 업로드 완료`;
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error(
+            `이미지 ${currentFileName} 업로드 중 오류 발생:`,
+            error
+          );
+          return false;
+        }
       }
-    } catch (error) {
-      alert("업로드 중 오류가 발생했습니다: " + error.message);
-    } finally {
-      // 버튼 상태 복원
-      submitButton.disabled = false;
-      submitButton.classList.remove("loading");
-      submitButton.textContent = "업로드";
+    );
+
+    // 모든 업로드 요청 실행
+    const results = await Promise.all(uploadPromises);
+    const finalSuccessCount = results.filter(Boolean).length;
+
+    // 전체 업로드 완료 후 처리
+    if (finalSuccessCount > 0) {
+      alert(`${finalSuccessCount}개의 이미지가 업로드되었습니다.`);
+      // UI 초기화
+      document.getElementById("imagePreview").innerHTML = "";
+      document.querySelector(".common-filter").style.display = "none";
+      document.getElementById("submitUpload").style.display = "none";
+      modal.style.display = "none";
+      // 갤러리 데이터 새로고침
+      await fetchAndDisplayData();
+    } else {
+      alert("업로드에 실패했습니다.");
     }
+
+    // 제출 버튼 상태 복원
+    submitButton.disabled = false;
+    submitButton.classList.remove("loading");
+    submitButton.textContent = "업로드";
+    progressContainer.remove();
   });
 
 // 전역 변수 추가
