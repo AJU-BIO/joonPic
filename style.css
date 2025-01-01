@@ -24,6 +24,7 @@
 
   /* 추가되는 색상 */
   --shadow-sm: rgba(0, 0, 0, 0.1);
+  --progress-bg: #f0f0f0;
 }
 
 @font-face {
@@ -98,7 +99,14 @@ body {
 
 /* 이미지 태그 컨테이너 */
 .image-tag-container {
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
   border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
 }
 
 .upload-container {
@@ -177,10 +185,6 @@ body {
   font-size: 14px;
 }
 
-#addCommonTag {
-  width: 130px;
-}
-
 .add-tag-button:hover {
   background-color: var(--primary-hover);
 }
@@ -216,9 +220,54 @@ body {
 }
 
 .common-filter {
-  display: none;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: var(--border-radius-md);
+}
+
+.common-filter button {
+  width: 220px;
+}
+
+.common-filter button > i {
+  margin-right: 10px;
+}
+
+.common-tag-section,
+.date-modifier {
+  display: flex;
+  gap: 10px;
   align-items: center;
+  justify-content: center;
+}
+
+.common-button {
+  white-space: nowrap;
+  font-size: 1.4rem;
+  padding: 8px 16px;
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.common-button i {
+  font-size: 1.4rem;
+}
+
+#commonTagInput,
+#commonDateInput {
+  font-size: 1.4rem;
+  padding: 8px 12px;
+  width: 200px;
 }
 
 .upload-submit-container {
@@ -678,11 +727,43 @@ main.container {
   .nav-right input {
     font-size: 0.88rem;
   }
+
+  .common-filter button {
+    width: 150px;
+    font-size: 0.88rem;
+  }
+
+  #commonTagInput,
+  #commonDateInput {
+    width: 150px;
+    font-size: 0.88rem;
+  }
+
+  .common-filter button > i {
+    margin-right: 5px;
+    font-size: 0.88rem;
+  }
 }
 
 @media (max-width: 400px) {
   .sort-button > i {
     display: none;
+  }
+
+  .common-filter button {
+    width: 120px;
+    font-size: 0.77rem;
+  }
+
+  #commonTagInput,
+  #commonDateInput {
+    width: 120px;
+    font-size: 0.77rem;
+  }
+
+  .common-filter button > i {
+    font-size: 0.77rem;
+    margin-right: 5px;
   }
 }
 
@@ -702,7 +783,7 @@ main.container {
 .progress {
   width: 0;
   height: 100%;
-  background-color: #4caf50;
+  background-color: var(--primary-color);
   transition: width 0.3s ease;
 }
 
@@ -710,4 +791,79 @@ main.container {
   text-align: center;
   margin-top: 5px;
   font-size: 14px;
+}
+
+.date-modifier {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.date-input {
+  padding: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+}
+
+.common-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  background-color: var(--primary-color);
+  color: var(--white);
+  cursor: pointer;
+}
+
+.common-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.file-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.file-info {
+  flex: 1;
+}
+
+.tag-input {
+  padding: 5px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  margin-right: 5px;
+}
+
+.action-button {
+  padding: 3px 8px;
+  font-size: 12px;
+  background-color: var(--primary-color);
+  color: var(--white);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+}
+
+.action-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.date-modifier-individual {
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }

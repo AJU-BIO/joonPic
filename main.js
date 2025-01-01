@@ -21,52 +21,67 @@ window.onclick = function (event) {
 const submitURL =
   "https://script.google.com/macros/s/AKfycbypqHqbQoWmGuv0OCDg3TJTd4J93vs_kG9RR28QhLAiAL-SUsPh84_sAlLfmnQ5F5Nfvg/exec";
 
+// addTag 함수 정의
+function addTag(text, container) {
+  if (!text.trim()) return;
+
+  const tagText = text.trim().startsWith("#") ? text.trim() : "#" + text.trim();
+
+  // 중복 태그 확인
+  const existingTags = Array.from(container.children).map(
+    (tag) => tag.textContent
+  );
+  if (existingTags.includes(tagText)) return;
+
+  const tag = document.createElement("span");
+  tag.className = "tag";
+  tag.textContent = tagText;
+
+  // 태그 클릭 시 삭제
+  tag.addEventListener("click", () => {
+    container.removeChild(tag);
+  });
+
+  container.appendChild(tag);
+}
+
 document
   .getElementById("imageUpload")
   .addEventListener("change", function (event) {
+    // 디버깅을 위한 콘솔 로그 추가
+    console.log("File input change event triggered");
+
+    const previewContainer = document.getElementById("imagePreview");
+
+    // previewContainer가 존재하는지 확인
+    if (!previewContainer) {
+      console.error("imagePreview element not found!");
+      return;
+    }
+
     // 파일이 선택되면 common-filter와 제출 버튼 표시
     document.querySelector(".common-filter").style.display = "flex";
     document.getElementById("submitUpload").style.display = "block";
 
-    const previewContainer = document.getElementById("imagePreview");
     previewContainer.innerHTML = ""; // 기존 미리보기 초기화
 
     const files = event.target.files;
+    console.log("Selected files:", files.length);
+
     for (let file of files) {
       if (file.type.startsWith("image/")) {
+        console.log("Processing image file:", file.name);
         const reader = new FileReader();
 
         reader.onload = function (e) {
-          // 이미지와 태그를 감싸는 컨테이너
+          console.log("FileReader loaded successfully");
           const imageContainer = document.createElement("div");
           imageContainer.className = "image-tag-container";
 
-          // 이미지 컨테이너를 클릭 가능하게 만들기
-          const imgWrapper = document.createElement("div");
-          imgWrapper.className = "preview-image-wrapper";
-          imgWrapper.style.cursor = "pointer";
-
-          const img = document.createElement("img");
-          img.src = e.target.result;
-          img.className = "preview-image";
-
-          // 이미지 클릭 이벤트 추가
-          imgWrapper.addEventListener("click", () => {
-            const modal = document.getElementById("imageModal");
-            const modalImg = document.getElementById("modalImage");
-            modalImg.src = e.target.result;
-            modal.style.display = "block";
-
-            // 다운로드 버튼 숨기기 (업로드 전이므로)
-            document.getElementById("downloadButton").style.display = "none";
-          });
-
-          imgWrapper.appendChild(img);
-          imageContainer.appendChild(imgWrapper);
-
-          // 태그 입력 영역 컨테이너
-          const tagArea = document.createElement("div");
-          tagArea.className = "tag-area";
+          // 이미지 미리보기
+          const previewImg = document.createElement("img");
+          previewImg.src = e.target.result;
+          previewImg.className = "preview-image";
 
           // 태그 입력 필드와 버튼을 감싸는 div
           const inputWrapper = document.createElement("div");
@@ -78,12 +93,12 @@ document
           tagInput.className = "tag-input";
           tagInput.placeholder = "태그를 입력하세요";
 
-          // 컨가 버튼
+          // 태그 추가 버튼
           const addButton = document.createElement("button");
           addButton.className = "add-tag-button";
           addButton.textContent = "Add";
 
-          // 태그들을 보여주는 컨테이너
+          // 태그 컨테이너
           const tagsContainer = document.createElement("div");
           tagsContainer.className = "tags-container";
 
@@ -97,21 +112,11 @@ document
             .padStart(2, "0")}일`;
           addTag(dateTag, tagsContainer);
 
-          // 태그 추가 함수
-          function addTag(text, container) {
-            if (text.trim() !== "") {
-              const tag = document.createElement("span");
-              tag.className = "tag";
-              tag.textContent = text.startsWith("#") ? text : "#" + text;
-
-              // 태그 클릭 시 삭제
-              tag.addEventListener("click", () => {
-                container.removeChild(tag);
-              });
-
-              container.appendChild(tag);
-            }
-          }
+          // 태그 추가 이벤트
+          addButton.addEventListener("click", () => {
+            addTag(tagInput.value, tagsContainer);
+            tagInput.value = "";
+          });
 
           // 엔터키 이벤트
           tagInput.addEventListener("keypress", (e) => {
@@ -121,21 +126,28 @@ document
             }
           });
 
-          // 추가 버튼 클릭 이벤트
-          addButton.addEventListener("click", () => {
-            addTag(tagInput.value, tagsContainer);
-            tagInput.value = "";
-          });
-
           // 요소들 조립
           inputWrapper.appendChild(tagInput);
           inputWrapper.appendChild(addButton);
-          tagArea.appendChild(inputWrapper);
-          tagArea.appendChild(tagsContainer);
+          imageContainer.appendChild(previewImg);
+          imageContainer.appendChild(inputWrapper);
+          imageContainer.appendChild(tagsContainer);
 
-          imageContainer.appendChild(img);
-          imageContainer.appendChild(tagArea);
+          // 이미지 클릭 이벤트
+          previewImg.addEventListener("click", () => {
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("modalImage");
+            modalImg.src = e.target.result;
+            modal.style.display = "block";
+            document.getElementById("downloadButton").style.display = "none";
+          });
+
           previewContainer.appendChild(imageContainer);
+          console.log("Image container added to preview");
+        };
+
+        reader.onerror = function (error) {
+          console.error("FileReader error:", error);
         };
 
         reader.readAsDataURL(file);
@@ -144,40 +156,40 @@ document
   });
 
 // 공통 태그 추가 기능
+document.querySelector(".common-filter").innerHTML = `
+  <div class="common-tag-section">
+    <input type="text" id="commonTagInput" class="tag-input" placeholder="공통 태그 입력">
+    <button id="addCommonTag" class="common-button">
+      <i class="fas fa-tags"></i> 일괄 태그 추가
+    </button>
+  </div>
+  <div class="date-modifier">
+    <input type="date" id="commonDateInput" class="date-input">
+    <button id="updateCommonDate" class="common-button">
+      <i class="fas fa-calendar-alt"></i> 일괄 날짜 수정
+    </button>
+  </div>
+`;
+
+// innerHTML로 요소를 새로 생성한 후에 이벤트 리스너를 다시 바인딩
 document.getElementById("addCommonTag").addEventListener("click", function () {
+  console.log("일괄 태그 추가 버튼 클릭됨");
   const commonTagInput = document.getElementById("commonTagInput");
   const tagText = commonTagInput.value.trim();
 
   if (tagText !== "") {
-    // 모든 태그 컨테이너를 찾아서 태그 추가
     const allTagsContainers = document.querySelectorAll(".tags-container");
+    console.log("찾은 태그 컨테이너:", allTagsContainers.length);
+
     allTagsContainers.forEach((container) => {
-      // 중복 태그 확인
-      const existingTags = Array.from(container.children).map(
-        (tag) => tag.textContent
-      );
-      const newTagText = tagText.startsWith("#") ? tagText : "#" + tagText;
-
-      if (!existingTags.includes(newTagText)) {
-        const tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = newTagText;
-
-        // 태그 클릭 시 삭제
-        tag.addEventListener("click", () => {
-          container.removeChild(tag);
-        });
-
-        container.appendChild(tag);
-      }
+      addTag(tagText, container);
     });
 
-    // 입력창 초기화
     commonTagInput.value = "";
   }
 });
 
-// 공통 태그 엔터키 이벤트
+// 공통 태그 엔터키 이벤트도 다시 바인딩
 document
   .getElementById("commonTagInput")
   .addEventListener("keypress", function (e) {
@@ -311,17 +323,17 @@ let isLoading = false;
 // 정역 변수에 필터링된 데이터를 저장할 변수 추가
 let filteredGalleryData = [];
 
-// 정렬 버튼 이벤트 리스너 추가
+// 정렬 버튼 이벤트 리스너 수정
 document.getElementById("sortNewest").addEventListener("click", () => {
   currentSortOrder = "newest";
   currentPage = 1;
-  displayGallery(galleryData);
+  displayGallery(filteredGalleryData);
 });
 
 document.getElementById("sortOldest").addEventListener("click", () => {
   currentSortOrder = "oldest";
   currentPage = 1;
-  displayGallery(galleryData);
+  displayGallery(filteredGalleryData);
 });
 
 // 스크롤 이벤트 리스너 추가
@@ -400,7 +412,7 @@ async function displayGallery(jsonData, isAppending = false) {
     fullImg.src = item.imgURL;
     fullImg.alt = "갤러리 이미지";
     fullImg.className = "gallery-image medium";
-    fullImg.loading = "lazy";
+    fullImg.loading = "preload";
 
     const tagContainer = document.createElement("div");
     tagContainer.className = "gallery-tags";
@@ -517,6 +529,47 @@ closeImageModal.addEventListener("click", () => {
   imageModal.style.display = "none";
 });
 
-//
+// 일괄 날짜 수정 기능
+document
+  .getElementById("updateCommonDate")
+  .addEventListener("click", function () {
+    const dateInput = document.getElementById("commonDateInput");
+    const selectedDate = new Date(dateInput.value);
+
+    if (dateInput.value) {
+      const newDateTag = `#${selectedDate.getFullYear()}년${(
+        selectedDate.getMonth() + 1
+      )
+        .toString()
+        .padStart(2, "0")}월${selectedDate
+        .getDate()
+        .toString()
+        .padStart(2, "0")}일`;
+
+      // 모든 태그 컨테이너를 찾아서 날짜 태그 수정
+      const allTagsContainers = document.querySelectorAll(".tags-container");
+      allTagsContainers.forEach((container) => {
+        // 기존 날짜 태그 찾기 및 제거
+        const tags = container.querySelectorAll(".tag");
+        tags.forEach((tag) => {
+          if (tag.textContent.match(/^#\d{4}년\d{2}월\d{2}일$/)) {
+            container.removeChild(tag);
+          }
+        });
+
+        // 새로운 날짜 태그 추가
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = newDateTag;
+
+        // 태그 클릭 시 삭제
+        tag.addEventListener("click", () => {
+          container.removeChild(tag);
+        });
+
+        container.insertBefore(tag, container.firstChild);
+      });
+    }
+  });
 
 fetchAndDisplayData();
