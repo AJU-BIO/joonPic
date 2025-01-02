@@ -283,7 +283,7 @@ document
               updateStatus(`이미지 ${i + 1} 업로드 시도 ${retry + 1}/3...`);
 
               const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 90000); // 90초로 증가
+              const timeoutId = setTimeout(() => controller.abort(), 90000);
 
               const response = await fetch(submitURL, {
                 method: "POST",
@@ -297,21 +297,33 @@ document
               clearTimeout(timeoutId);
               const result = await response.text();
 
+              // 응답 검증 강화
               if (!response.ok) {
                 throw new Error(`서버 응답 오류: ${response.status}`);
               }
 
-              // 응답 검증 강화
-              if (!result || result === "업로드실패") {
-                throw new Error("서버에서 업로드 실패 응답");
+              if (
+                !result ||
+                result === "업로드실패" ||
+                result.includes("업로드실패:")
+              ) {
+                throw new Error(`서버 업로드 실패: ${result}`);
               }
 
               if (!result.includes(currentFileName)) {
                 throw new Error("파일명 불일치: 서버 응답 확인 필요");
               }
 
-              updateStatus(`이미지 ${i + 1} 업로드 성공!`);
-              updateStatus(result); // 서버 응답 로그에 표시
+              // 실제 업로드 확인을 위한 추가 검증
+              await new Promise((resolve) => setTimeout(resolve, 1000)); // 2초 대기
+              const verifyResponse = await fetch(submitURL);
+              const verifyData = await verifyResponse.text();
+
+              if (!verifyData.includes(currentFileName)) {
+                throw new Error("업로드 확인 실패: 파일이 서버에 없음");
+              }
+
+              updateStatus(`이미지 ${i + 1} 업로드 성공 확인!`);
               container.style.opacity = "0.5";
               return true;
             } catch (error) {
@@ -330,7 +342,7 @@ document
                 return false;
               }
 
-              const waitTime = (retry + 1) * 3000; // 재시도마다 대기 시간 증가
+              const waitTime = (retry + 1) * 3000;
               updateStatus(`이미지 ${i + 1} ${waitTime / 1000}초 후 재시도...`);
               await new Promise((resolve) => setTimeout(resolve, waitTime));
             }
@@ -381,13 +393,11 @@ let filteredGalleryData = [];
 // 정렬 버튼 이벤트 리스너 수정
 document.getElementById("sortNewest").addEventListener("click", () => {
   currentSortOrder = "newest";
-  currentPage = 1;
   displayGallery(filteredGalleryData);
 });
 
 document.getElementById("sortOldest").addEventListener("click", () => {
   currentSortOrder = "oldest";
-  currentPage = 1;
   displayGallery(filteredGalleryData);
 });
 
@@ -419,8 +429,8 @@ async function displayGallery(jsonData, isAppending = false) {
 
   isLoading = true;
 
-  // 정렬 로직
-  const sortedData = jsonData.sort((a, b) => {
+  // 현재 표시된 데이터만 정렬
+  const sortedData = [...jsonData].sort((a, b) => {
     const getDateFromTags = (tags) => {
       const dateTag = tags
         .split(",")
@@ -436,8 +446,8 @@ async function displayGallery(jsonData, isAppending = false) {
       const [idDateA, orderA] = a.id.split("_");
       const [idDateB, orderB] = b.id.split("_");
       return currentSortOrder === "newest"
-        ? idDateB.localeCompare(idDateA) || parseInt(orderA) - parseInt(orderB)
-        : idDateA.localeCompare(idDateB) || parseInt(orderB) - parseInt(orderA);
+        ? idDateB.localeCompare(idDateA) || parseInt(orderB) - parseInt(orderA)
+        : idDateA.localeCompare(idDateB) || parseInt(orderA) - parseInt(orderB);
     }
 
     return currentSortOrder === "newest"
