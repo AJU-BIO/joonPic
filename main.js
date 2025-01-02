@@ -207,19 +207,29 @@ document
     submitButton.disabled = true;
     submitButton.classList.add("loading");
 
-    // 프로그레스 바 UI 생성
-    const progressContainer = document.createElement("div");
-    progressContainer.className = "upload-progress-container";
-    progressContainer.innerHTML = `
-      <div class="progress-bar">
-        <div class="progress"></div>
+    // 상태 표시 UI 생성
+    const statusContainer = document.createElement("div");
+    statusContainer.className = "upload-status-container";
+    statusContainer.innerHTML = `
+      <div class="upload-progress-container">
+        <div class="progress-bar">
+          <div class="progress"></div>
+        </div>
+        <div class="progress-text">0/0 업로드 완료</div>
       </div>
-      <div class="progress-text">0/0 업로드 완료</div>
+      <div class="status-text" style="margin-top: 10px; color: #666; font-size: 14px;"></div>
     `;
-    submitButton.parentElement.appendChild(progressContainer);
+    submitButton.parentElement.appendChild(statusContainer);
 
-    const progressBar = progressContainer.querySelector(".progress");
-    const progressText = progressContainer.querySelector(".progress-text");
+    const progressBar = statusContainer.querySelector(".progress");
+    const progressText = statusContainer.querySelector(".progress-text");
+    const statusText = statusContainer.querySelector(".status-text");
+
+    // 상태 업데이트 함수
+    const updateStatus = (message) => {
+      statusText.textContent = message;
+      console.log(message); // 콘솔에도 계속 기록
+    };
 
     // 업로드할 이미지 컨테이너들 수집
     const imageContainers = document.querySelectorAll(".image-tag-container");
@@ -235,17 +245,21 @@ document
     // 모든 업로드 요청을 Promise 배열로 생성
     const uploadPromises = Array.from(imageContainers).map(
       async (container, i) => {
-        // 각 요청 시작 전 지연 시간 설정 (0ms, 500ms, 1000ms, ...)
         await new Promise((resolve) => setTimeout(resolve, i * 500));
 
         const img = container.querySelector(".preview-image");
-        const base64Data = img.src.split(",")[1];
+
+        updateStatus(`이미지 ${i + 1} 리사이징 중...`);
+        const resizedImage = await resizeImage(img.src, 5472);
+        const base64Data = resizedImage.split(",")[1];
+
         const tags = Array.from(container.querySelectorAll(".tag")).map((tag) =>
           tag.textContent.replace("#", "")
         );
 
         const currentFileName = `${dateStr}_${i + 1}`;
 
+        updateStatus(`이미지 ${i + 1} 업로드 준비 중...`);
         const singlePayload = JSON.stringify({
           type: "add",
           data: [
@@ -257,52 +271,68 @@ document
           ],
         });
 
-        try {
-          const response = await fetch(submitURL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: singlePayload,
-          });
-          console.log(`FETCH보냄: ${currentFileName}`);
-          const result = await response.text();
-          console.log(result);
-          if (response.ok && result.includes(currentFileName)) {
-            uploadSuccessCount++;
-            container.style.opacity = "0.5";
+        // 재시도 로직
+        for (let retry = 0; retry < 3; retry++) {
+          try {
+            updateStatus(
+              `이미지 ${i + 1} 업로드 시도 횟수:  ${retry + 1}/3...`
+            );
+            const response = await fetch(submitURL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: singlePayload,
+              timeout: 30000,
+            });
 
-            const progress = (uploadSuccessCount / totalImages) * 100;
-            progressBar.style.width = `${progress}%`;
-            progressText.textContent = `${uploadSuccessCount}/${totalImages} 업로드 완료`;
-            return true;
+            const result = await response.text();
+            updateStatus(
+              `이미지 ${i + 1} 응답 수신: ${result.substring(0, 50)}...`
+            );
+
+            if (response.ok && result.includes(currentFileName)) {
+              uploadSuccessCount++;
+              container.style.opacity = "0.5";
+
+              const progress = (uploadSuccessCount / totalImages) * 100;
+              progressBar.style.width = `${progress}%`;
+              progressText.textContent = `${uploadSuccessCount}/${totalImages} 업로드 완료`;
+              updateStatus(`이미지 ${i + 1} 업로드 성공!`);
+              return true;
+            }
+
+            updateStatus(`이미지 ${i + 1} 재시도 대기 중...`);
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          } catch (error) {
+            updateStatus(
+              `이미지 ${i + 1} 업로드 실패 (시도 ${retry + 1}/3): ${
+                error.message
+              }`
+            );
+            if (retry === 2) return false;
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
-          return false;
-        } catch (error) {
-          console.error(
-            `이미지 ${currentFileName} 업로드 중 오류 발생:`,
-            error
-          );
-          return false;
         }
+        return false;
       }
     );
 
-    // 모든 업로드 요청 실행
+    // 전체 업로드 완료 후 처리
     const results = await Promise.all(uploadPromises);
     const finalSuccessCount = results.filter(Boolean).length;
 
-    // 전체 업로드 완료 후 처리
     if (finalSuccessCount > 0) {
+      updateStatus(`총 ${finalSuccessCount}개의 이미지 업로드 완료!`);
       alert(`${finalSuccessCount}개의 이미지가 업로드되었습니다.`);
       // UI 초기화
       document.getElementById("imagePreview").innerHTML = "";
       document.querySelector(".common-filter").style.display = "none";
       document.getElementById("submitUpload").style.display = "none";
       modal.style.display = "none";
-      // 갤러리 데이터 새로고침
       await fetchAndDisplayData();
     } else {
+      updateStatus("모든 이미지 업로드 실패");
       alert("업로드에 실패했습니다.");
     }
 
@@ -310,7 +340,7 @@ document
     submitButton.disabled = false;
     submitButton.classList.remove("loading");
     submitButton.textContent = "업로드";
-    progressContainer.remove();
+    statusContainer.remove();
   });
 
 // 전역 변수 추가
@@ -431,9 +461,29 @@ async function displayGallery(jsonData, isAppending = false) {
       const downloadBtn = document.getElementById("downloadButton");
 
       modalImg.src = item.imgURL;
-      downloadBtn.href = item.imgURL;
-      downloadBtn.download = `${item.id}.jpg`; // 다운로드 파일명 설정
       modal.style.display = "block";
+
+      // 다운로드 버튼 클릭 이벤트 수정
+      downloadBtn.onclick = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          const response = await fetch(item.imgURL);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = `${item.id}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch (error) {
+          console.error("다운로드 중 오류 발생:", error);
+        }
+      };
     });
 
     card.appendChild(mediumImg);
@@ -571,5 +621,39 @@ document
       });
     }
   });
+
+// 다운로드 버튼 이벤트 리스너 추가
+document
+  .getElementById("downloadButton")
+  .addEventListener("click", function (e) {
+    e.stopPropagation(); // 이벤트 버블링 방지
+  });
+
+// 이미지 리사이징 함수 추가
+async function resizeImage(base64Str, maxWidth = 1920) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // 비율 계산
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.8)); // 품질 80%로 압축
+    };
+  });
+}
 
 fetchAndDisplayData();
