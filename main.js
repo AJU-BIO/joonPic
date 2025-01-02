@@ -207,7 +207,7 @@ document
     submitButton.disabled = true;
     submitButton.classList.add("loading");
 
-    // 상태 표시 UI 생성
+    // 상태 로그 UI 생성
     const statusContainer = document.createElement("div");
     statusContainer.className = "upload-status-container";
     statusContainer.innerHTML = `
@@ -217,18 +217,23 @@ document
         </div>
         <div class="progress-text">0/0 업로드 완료</div>
       </div>
-      <div class="status-text" style="margin-top: 10px; color: #666; font-size: 14px;"></div>
+      <div class="status-log" style="margin-top: 10px; max-height: 200px; overflow-y: auto; font-size: 14px;"></div>
     `;
     submitButton.parentElement.appendChild(statusContainer);
 
     const progressBar = statusContainer.querySelector(".progress");
     const progressText = statusContainer.querySelector(".progress-text");
-    const statusText = statusContainer.querySelector(".status-text");
+    const statusLog = statusContainer.querySelector(".status-log");
 
     // 상태 업데이트 함수
-    const updateStatus = (message) => {
-      statusText.textContent = message;
-      console.log(message); // 콘솔에도 계속 기록
+    const updateStatus = (message, isError = false) => {
+      const logEntry = document.createElement("div");
+      logEntry.style.color = isError ? "#ff4444" : "#666";
+      logEntry.style.marginBottom = "4px";
+      logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+      statusLog.appendChild(logEntry);
+      statusLog.scrollTop = statusLog.scrollHeight;
+      console.log(isError ? `Error: ${message}` : message);
     };
 
     // 업로드할 이미지 컨테이너들 수집
@@ -247,72 +252,92 @@ document
       async (container, i) => {
         await new Promise((resolve) => setTimeout(resolve, i * 500));
 
-        const img = container.querySelector(".preview-image");
+        try {
+          const img = container.querySelector(".preview-image");
+          updateStatus(`이미지 ${i + 1} 리사이징 중...`);
 
-        updateStatus(`이미지 ${i + 1} 리사이징 중...`);
-        const resizedImage = await resizeImage(img.src, 5472);
-        const base64Data = resizedImage.split(",")[1];
+          const resizedImage = await resizeImage(img.src, 5472);
+          const base64Data = resizedImage.split(",")[1];
 
-        const tags = Array.from(container.querySelectorAll(".tag")).map((tag) =>
-          tag.textContent.replace("#", "")
-        );
+          const tags = Array.from(container.querySelectorAll(".tag")).map(
+            (tag) => tag.textContent.replace("#", "")
+          );
 
-        const currentFileName = `${dateStr}_${i + 1}`;
+          const currentFileName = `${dateStr}_${i + 1}`;
+          updateStatus(`이미지 ${i + 1} 업로드 준비 완료`);
 
-        updateStatus(`이미지 ${i + 1} 업로드 준비 중...`);
-        const singlePayload = JSON.stringify({
-          type: "add",
-          data: [
-            {
-              fileName: currentFileName,
-              fileBase64: base64Data,
-              tags: tags,
-            },
-          ],
-        });
-
-        // 재시도 로직
-        for (let retry = 0; retry < 3; retry++) {
-          try {
-            updateStatus(
-              `이미지 ${i + 1} 업로드 시도 횟수:  ${retry + 1}/3...`
-            );
-            const response = await fetch(submitURL, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
+          const singlePayload = JSON.stringify({
+            type: "add",
+            data: [
+              {
+                fileName: currentFileName,
+                fileBase64: base64Data,
+                tags: tags,
               },
-              body: singlePayload,
-              timeout: 30000,
-            });
+            ],
+          });
 
-            const result = await response.text();
-            updateStatus(
-              `이미지 ${i + 1} 응답 수신: ${result.substring(0, 50)}...`
-            );
+          // 재시도 로직
+          for (let retry = 0; retry < 3; retry++) {
+            try {
+              updateStatus(`이미지 ${i + 1} 업로드 시도 ${retry + 1}/3...`);
 
-            if (response.ok && result.includes(currentFileName)) {
-              uploadSuccessCount++;
-              container.style.opacity = "0.5";
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 90000); // 90초로 증가
 
-              const progress = (uploadSuccessCount / totalImages) * 100;
-              progressBar.style.width = `${progress}%`;
-              progressText.textContent = `${uploadSuccessCount}/${totalImages} 업로드 완료`;
+              const response = await fetch(submitURL, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: singlePayload,
+                signal: controller.signal,
+              });
+
+              clearTimeout(timeoutId);
+              const result = await response.text();
+
+              if (!response.ok) {
+                throw new Error(`서버 응답 오류: ${response.status}`);
+              }
+
+              // 응답 검증 강화
+              if (!result || result === "업로드실패") {
+                throw new Error("서버에서 업로드 실패 응답");
+              }
+
+              if (!result.includes(currentFileName)) {
+                throw new Error("파일명 불일치: 서버 응답 확인 필요");
+              }
+
               updateStatus(`이미지 ${i + 1} 업로드 성공!`);
+              updateStatus(result); // 서버 응답 로그에 표시
+              container.style.opacity = "0.5";
               return true;
-            }
+            } catch (error) {
+              const errorMessage =
+                error.name === "AbortError"
+                  ? "타임아웃 (90초 초과)"
+                  : error.message;
 
-            updateStatus(`이미지 ${i + 1} 재시도 대기 중...`);
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          } catch (error) {
-            updateStatus(
-              `이미지 ${i + 1} 업로드 실패 (시도 ${retry + 1}/3): ${
-                error.message
-              }`
-            );
-            if (retry === 2) return false;
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+              updateStatus(`이미지 ${i + 1} 실패: ${errorMessage}`, true);
+
+              if (retry === 2) {
+                updateStatus(
+                  `이미지 ${i + 1} 최종 실패 - 다시 시도해주세요`,
+                  true
+                );
+                return false;
+              }
+
+              const waitTime = (retry + 1) * 3000; // 재시도마다 대기 시간 증가
+              updateStatus(`이미지 ${i + 1} ${waitTime / 1000}초 후 재시도...`);
+              await new Promise((resolve) => setTimeout(resolve, waitTime));
+            }
           }
+        } catch (error) {
+          updateStatus(`이미지 ${i + 1} 처리 중 오류: ${error.message}`, true);
+          return false;
         }
         return false;
       }
