@@ -267,7 +267,7 @@ document
           });
           console.log(`FETCH보냄: ${currentFileName}`);
           const result = await response.text();
-
+          console.log(result);
           if (response.ok && result.includes(currentFileName)) {
             uploadSuccessCount++;
             container.style.opacity = "0.5";
